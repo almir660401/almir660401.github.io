@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; require-trusted-types-for 'script'">
+<meta name="referrer" content="no-referrer">
+<title>Aprovação WebAuthn</title>
+<link rel="stylesheet" href="./style.css" integrity="sha384-RgocPTm0QI0dekh6lA1MVP+Ir/iXCs+S6RQ0SK8rrCR4kRdVpwIxLFSh1sucPVF+">
+</head>
+<body>
+<h1>Aprovação WebAuthn por job</h1>
+<p class="note">Esta página apenas gera a prova WebAuthn (verificação do usuário obrigatória). Ela não envia dados, não armazena nada e não autoriza execução por si só.</p>
+<label for="st">Statement do job (JSON recebido pelo canal governado):</label>
+<textarea id="st" spellcheck="false" maxlength="4096"></textarea>
+<button id="go" type="button">Revisar e aprovar com passkey</button>
+<h2>Resumo</h2><pre id="summary">-</pre>
+<h2>Assertion (copiar para o canal governado)</h2><pre id="out">-</pre>
+<script type="module" src="./approve_v27.js" integrity="sha384-QY+DuFTGCnrVG6w26B5Zw5iwgzYbeFKGv3tBubUXWHPJeXSbuFB3El6eccs8g10W"></script>
+</body>
+</html>
