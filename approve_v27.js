@@ -56,6 +56,27 @@ export function checkStatementForPage(statement, loc, nowSeconds) {
   if (!(statement.issued_at <= nowSeconds && nowSeconds < statement.expires_at)) throw new Error("STATEMENT_EXPIRED");
 }
 
+// v1.1 (PR24 #7166931005): deterministic selection of the REGISTERED passkey. The public credential id arrives in
+// the URL fragment (#cred=<base64url>, never sent to the server); it is accepted ONLY if SHA-256(id) equals the
+// statement's credential_id_sha256 (the custody pin), and is then the ONLY entry of allowCredentials.
+export function unb64u(text) {
+  if (typeof text !== "string" || !/^[A-Za-z0-9_-]{16,1400}$/.test(text)) throw new Error("CREDENTIAL_ID_REQUIRED");
+  const bin = atob(text.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((text.length + 3) % 4));
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  if (b64u(out) !== text) throw new Error("CREDENTIAL_ID_ENCODING");
+  return out;
+}
+
+export async function allowedCredential(statement, fragment, subtle = globalThis.crypto.subtle) {
+  const cred = new URLSearchParams(String(fragment || "").replace(/^#/, "")).get("cred");
+  const id = unb64u(cred);
+  const digest = new Uint8Array(await subtle.digest("SHA-256", id));
+  const hex = Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join("");
+  if (hex !== statement.credential_id_sha256) throw new Error("CREDENTIAL_ID_NOT_THE_PINNED_ONE");
+  return [{ type: "public-key", id }];
+}
+
 export function assertionJson(credential) {
   const r = credential.response;
   return {
@@ -75,12 +96,14 @@ function wirePage(doc) {
     try {
       const st = parseStatement($("st").value);
       checkStatementForPage(st, window.location, Math.floor(Date.now() / 1000));
+      const allow = await allowedCredential(st, window.location.hash);
       $("summary").textContent = [
         "release: " + st.release_id,
         "alvo: " + st.target_id + " / " + st.relative_path,
         "commit: " + st.git_commit,
         "base -> patch: " + st.base_sha256.slice(0, 12) + " -> " + st.patch_sha256.slice(0, 12),
         "job: " + st.job_id,
+        "passkey registrada: " + st.credential_id_sha256.slice(0, 12),
         "expira: " + new Date(st.expires_at * 1000).toISOString(),
       ].join("\n");
       const credential = await navigator.credentials.get({
@@ -89,7 +112,7 @@ function wirePage(doc) {
           rpId: st.rp_id,
           userVerification: "required",
           timeout: 120000,
-          allowCredentials: [],
+          allowCredentials: allow,
         },
       });
       $("out").textContent = JSON.stringify(assertionJson(credential), null, 2);
